@@ -1,12 +1,16 @@
 import WebSocket from "ws";
 import readline from "readline";
 import { TerminalColor } from "./enum/terminalColor";
+import { Connection, Message, Error } from "./interfaces/Message";
 
 // Eingabe-Interface erstellen
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
+  prompt: `${TerminalColor.FgYellow}Ich: ${TerminalColor.Reset}`,
 });
+
+let chosenName = "";
 
 // Verbindung mit dem Server
 const ws = new WebSocket("ws://localhost:8080");
@@ -20,14 +24,34 @@ export function connectToServer() {
 
     // Eingabe vom Nutzer lesen
     rl.on("line", (line) => {
-      ws.send(JSON.stringify({ data: line })); // Nachricht an den Server senden
+      ws.send(JSON.stringify({ type: "message", data: line }));
+      rl.prompt(true);
     });
   });
 
-  ws.on("message", (message) => {
-    console.log(`Nachricht vom anderen Client: ${message}`);
-    console.log(TerminalColor.FgCyan, "I am cyan");
-    console.log(TerminalColor.Reset);
+  ws.on("message", (message: Connection | Error | Message) => {
+    const receivedMessage = JSON.parse(message.toString());
+
+    switch (receivedMessage.type) {
+      case "roomKey":
+        console.log(TerminalColor.FgGreen, receivedMessage.roomKey);
+        console.log(TerminalColor.Reset);
+
+        break;
+      case "error":
+        console.log(TerminalColor.FgRed, receivedMessage.data);
+        console.log(TerminalColor.Reset);
+        setupRoom(chosenName);
+        break;
+      case "message":
+        printMessage(
+          `${TerminalColor.FgCyan}${receivedMessage.name}: ${TerminalColor.Reset}${receivedMessage.data}`
+        );
+        break;
+      default:
+        break;
+    }
+    rl.prompt(true);
   });
 
   ws.on("close", () => {
@@ -42,6 +66,7 @@ export function connectToServer() {
 
 function init() {
   askForName((name: string) => {
+    chosenName = name;
     setupRoom(name);
   });
 }
@@ -72,13 +97,19 @@ function setupRoom(name: string) {
   });
 }
 
-function askForName(callback: (name: string) => void) {
-  rl.question("Bitte gib deinen Namen ein: ", (name) => {
-    if (name.trim() === "") {
+function askForName(callback: (response: string) => void) {
+  rl.question("Bitte gib deinen Namen ein: ", (response) => {
+    if (response.trim() === "") {
       console.log("Der Name darf nicht leer sein. Bitte versuche es erneut.");
       askForName(callback); // Repeat if name is empty
     } else {
-      callback(name); // Return the name into the callback function
+      callback(response); // Return the name into the callback function
     }
   });
+}
+
+function printMessage(message: string) {
+  rl.write(null, { ctrl: true, name: "u" });
+  readline.cursorTo(process.stdout, 0);
+  console.log(`${message}`); // Nachricht anzeigen
 }

@@ -15,23 +15,25 @@ const connections: Connection[] = [];
 
 wss.on("connection", (ws) => {
   console.log("Ein Client hat sich verbunden.");
-
   // Nachricht vom Client empfangen
   ws.on("message", (message: ConnectToServerMessage | ChatMessage) => {
-    switch (message.type) {
-      case MessageType.CreateRoom:
-        connections.push({ ws, name: message.name, roomKey: randomUUID() });
+    const data = JSON.parse(message.toString());
+
+    switch (data.type) {
+      case "createRoom":
+        const key = randomUUID();
+        connections.push({ ws, name: data.name, roomKey: key });
+        ws.send(JSON.stringify({ type: "roomKey", roomKey: key }));
         break;
-      case MessageType.JoinRoom:
+
+      case "joinRoom":
         if (
-          connections.find(
-            (connection) => connection.roomKey === message.roomKey
-          )
+          connections.find((connection) => connection.roomKey === data.roomKey)
         ) {
           connections.push({
             ws,
-            name: message.name,
-            roomKey: message.roomKey,
+            name: data.name,
+            roomKey: data.roomKey,
           });
         } else {
           ws.send(
@@ -39,17 +41,32 @@ wss.on("connection", (ws) => {
           );
         }
         break;
-      case MessageType.Message:
-        console.log(`Nachricht erhalten: ${message}`);
 
-        const data = JSON.parse(message.toString());
+      case "message":
+        const sourceConnection = connections.find(
+          (connection) => connection.ws === ws
+        );
 
-        // Nachricht an alle anderen Clients weiterleiten
-        wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: "message", data: data.data }));
+        const connected = connections.filter(
+          (connection) =>
+            connection.roomKey === sourceConnection?.roomKey &&
+            connection.ws !== ws
+        );
+        console.log(sourceConnection);
+        connected.forEach((c) => {
+          if (c.ws.readyState === WebSocket.OPEN) {
+            c.ws.send(
+              JSON.stringify({
+                type: "message",
+                data: data.data,
+                name: sourceConnection?.name,
+              })
+            );
           }
         });
+
+        break;
+      default:
         break;
     }
   });

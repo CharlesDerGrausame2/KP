@@ -152,7 +152,7 @@ function setupRoom(name: string) {
  * If the user enters an empty name, they are asked again until a valid input is given.
  * @param callback Called with the user's name as argument.
  */
-function askForName(callback: (response: string) => void) {
+export function askForName(callback: (response: string) => void) {
   rl.question("Bitte gib deinen Namen ein: ", (response) => {
     if (response.trim() === "") {
       console.log("Der Name darf nicht leer sein. Bitte versuche es erneut.");

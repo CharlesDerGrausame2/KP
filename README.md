@@ -122,11 +122,11 @@ Beim Start verbinden sich die Clients automatisch mit dem Server und senden ihre
 Starte den Server indem du ihn im Terminal öffnest und folgenden Befehl ausführst:
 
 ```
-go server.go
+go run server.go
 ```
 
 Starte den Client indem du ihn im Terminal öffnest und folgenden Befehl ausführst:
 
 ```
-go client.go
+go run client.go
 ```
